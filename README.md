@@ -1,3 +1,45 @@
+# Setup Instructions
+
+1. Create Virtual Environment with
+```bash
+python3 -m venv venv
+```
+
+2. Activate venv
+```bash
+# macOS / Linux
+source venv/bin/activate
+
+# Windows (PowerShell)
+venv\Scripts\Activate.ps1
+
+# Windows (CMD)
+venv\Scripts\activate.bat
+```
+3. Install requirements
+```bash
+pip install -r requirements.txt
+```
+
+4. Create .env file in root (refer to text channels for client ID and secret)
+```bash
+ENVIRONMENT=development
+FRONTEND_URL=http://localhost:3000
+BACKEND_URL=http://localhost:8000
+GOOGLE_CLIENT_ID={your_local_google_client_id}
+GOOGLE_CLIENT_SECRET={your_local_google_secret}
+SESSION_SECRET_KEY={your_session_secret_key}
+```
+
+5. Launch app
+```bash
+uvicorn main:app --reload
+```
+
+6. Reference backend API descriptions by navigating to [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+
+
+
 # Deploy FastAPI on Render
 
 Use this repo as a template to deploy a Python [FastAPI](https://fastapi.tiangolo.com) service on Render.

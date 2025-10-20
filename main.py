@@ -1,20 +1,27 @@
 from typing import Optional
 
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request, Depends, UploadFile, File, Form, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
 from fastapi.responses import RedirectResponse
 from authlib.integrations.starlette_client import OAuth
 from starlette.middleware.sessions import SessionMiddleware
-
-
+from supabase import create_client, Client
+import uuid, io
+from datetime import datetime
 
 load_dotenv()
 
 app = FastAPI()
 
 FRONTEND_URL = os.getenv("FRONTEND_URL")
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+# Worry about this when we hosting
+# SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+SIGNED_URL_TTL = int(os.getenv("SIGNED_URL_TTL", "3600"))
+
+
 oauth = OAuth()
 CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
 oauth.register(

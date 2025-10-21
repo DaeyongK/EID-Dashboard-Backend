@@ -91,7 +91,7 @@ def get_images(supabase: Client, start: int, end: int, SIGNED_URL_TTL):
 
     return out
 
-def _get_image_id_by_ordinal(supabase, n: int) -> str:
+def _get_image_id(supabase, n: int) -> str:
     res = (
         supabase.table("images")
         .select("id")
@@ -104,7 +104,7 @@ def _get_image_id_by_ordinal(supabase, n: int) -> str:
     return res.data["id"]
 
 def create_comment_helper(supabase, user_email, ordinal, comment):
-    image_id = _get_image_id_by_ordinal(supabase, ordinal)
+    image_id = _get_image_id(supabase, ordinal)
 
     res = (
         supabase.table("comments")
@@ -122,4 +122,31 @@ def create_comment_helper(supabase, user_email, ordinal, comment):
         image_id = row["image_id"],
         body = row["body"],
         created_at = row["created_at"]
+    )
+
+def read_user_comment_helper(
+    supabase, user_email: str, ordinal: int
+) -> Optional[CommentsRow]:
+    image_id = _get_image_id(supabase, ordinal)
+
+    res = (
+        supabase.table("comments")
+        .select("*")
+        .eq("image_id", image_id)
+        .eq("email_id", user_email)
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+
+    rows = res.data or []
+    if not rows:
+        return None
+    
+    r = rows[0]
+    return CommentsRow(
+        email_id=r["email_id"],
+        image_id=r["image_id"],
+        body=r["body"],
+        created_at=r["created_at"],
     )

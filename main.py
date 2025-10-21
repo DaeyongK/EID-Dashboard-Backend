@@ -145,8 +145,23 @@ def create_comment(
     request: Request,
     body: str = Body(..., embed=False),
 ):
+    """
+    Publishes comment to database for users
+    """
     user_email = request.cookies.get("user")
     if not user_email:
         raise HTTPException(status_code=401, detail="No user identity, please authenticate")
 
     return supabase_utils.create_comment_helper(supabase, user_email, n, body)
+
+@app.get("/comments/read/{n}", response_model=Optional[CommentsRow])
+def read_comment(ordinal: int, request: Request):
+    """
+    Given ordinal of image, read the user's previous comment, if no comment for that user in that image
+    return null
+    """
+    user_email = request.cookies.get("user")
+    if not user_email:
+        raise HTTPException(status_code=401, detail="No user identity, please authenticate")
+
+    return supabase_utils.read_user_comment_helper(supabase, user_email, ordinal)

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import FastAPI, Request, Depends, UploadFile, File, Form, HTTPException, Query
+from fastapi import FastAPI, Request, Body, UploadFile, File, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
@@ -10,7 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from supabase import create_client, Client
 import uuid, io
 from datetime import datetime
-from utils.util_types.supabase_types import ImagesRow
+from utils.util_types.supabase_types import ImagesRow, CommentsRow
 from utils import supabase_utils
 
 load_dotenv()
@@ -138,3 +138,15 @@ def get_images_range(
         raise HTTPException(status_code=400, detail=f"range too large; max {max_window}")
     
     return supabase_utils.get_images(supabase, start, end, SIGNED_URL_TTL)
+
+@app.post("/comments/write/{n}", response_model=CommentsRow)
+def create_comment(
+    n: int,
+    request: Request,
+    body: str = Body(..., embed=False),
+):
+    user_email = request.cookies.get("user")
+    if not user_email:
+        raise HTTPException(status_code=401, detail="No user identity, please authenticate")
+
+    return supabase_utils.create_comment_helper(supabase, user_email, n, body)

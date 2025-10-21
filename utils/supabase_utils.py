@@ -4,7 +4,7 @@ import uuid
 from fastapi import HTTPException, UploadFile
 from supabase import Client
 from typing import Optional
-from .util_types.supabase_types import ImagesRow
+from .util_types.supabase_types import ImagesRow, CommentsRow
 
 def _ext_from_content_type(ct: str) -> str:
     mapping = {"image/png": ".png","image/jpeg": ".jpg","image/jpg": ".jpg","image/webp": ".webp","image/gif": ".gif"}
@@ -90,3 +90,36 @@ def get_images(supabase: Client, start: int, end: int, SIGNED_URL_TTL):
         ))
 
     return out
+
+def _get_image_id_by_ordinal(supabase, n: int) -> str:
+    res = (
+        supabase.table("images")
+        .select("id")
+        .eq("ordinal", n)
+        .single()
+        .execute()
+    )
+    if not res.data:
+        raise HTTPException(status_code=404, detail=f"Image with ordinal {n} not found")
+    return res.data["id"]
+
+def create_comment_helper(supabase, user_email, ordinal, comment):
+    image_id = _get_image_id_by_ordinal(supabase, ordinal)
+
+    res = (
+        supabase.table("comments")
+        .insert({"email_id": user_email, "image_id": image_id, "body": comment})
+        .execute()
+    )
+
+    if not res.data:
+        raise HTTPException(status_code=500, detail="Insert failed")
+
+    row = res.data[0]
+
+    return CommentsRow(
+        email_id = row["email_id"],
+        image_id = row["image_id"],
+        body = row["body"],
+        created_at = row["created_at"]
+    )

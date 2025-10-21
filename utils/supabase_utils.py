@@ -116,7 +116,7 @@ def _get_image_id(supabase, n: int) -> str:
         raise HTTPException(status_code=404, detail=f"Image with ordinal {n} not found")
     return res.data["id"]
 
-def create_comment_helper(supabase, user_email, ordinal, comment):
+def create_comment_helper(supabase, user_email, ordinal, comment, damage):
     """
     Publishes comment
     """
@@ -124,7 +124,7 @@ def create_comment_helper(supabase, user_email, ordinal, comment):
 
     res = (
         supabase.table("comments")
-        .insert({"email_id": user_email, "image_id": image_id, "body": comment})
+        .insert({"email_id": user_email, "image_id": image_id, "body": comment, "damage_sev": damage})
         .execute()
     )
 
@@ -137,6 +137,7 @@ def create_comment_helper(supabase, user_email, ordinal, comment):
         email_id = row["email_id"],
         image_id = row["image_id"],
         body = row["body"],
+        damage = row["damage_sev"],
         created_at = row["created_at"]
     )
 
@@ -167,5 +168,6 @@ def read_user_comment_helper(
         email_id=r["email_id"],
         image_id=r["image_id"],
         body=r["body"],
+        damage = r["damage_sev"],
         created_at=r["created_at"],
     )

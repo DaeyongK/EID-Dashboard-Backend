@@ -12,4 +12,5 @@ class CommentsRow(BaseModel):
     email_id: str
     image_id: str
     body: str
+    damage: int
     created_at: Optional[str] = None

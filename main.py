@@ -143,6 +143,7 @@ def get_images_range(
 def create_comment(
     n: int,
     request: Request,
+    damage_sev: int,
     body: str = Body(..., embed=False),
 ):
     """
@@ -151,8 +152,10 @@ def create_comment(
     user_email = request.cookies.get("user")
     if not user_email:
         raise HTTPException(status_code=401, detail="No user identity, please authenticate")
+    if not (0 <= damage_sev <= 3):
+        raise HTTPException(status_code=401, detail="Damage severity must be between 0 and 3 (inclusive)")
 
-    return supabase_utils.create_comment_helper(supabase, user_email, n, body)
+    return supabase_utils.create_comment_helper(supabase, user_email, n, body, damage_sev)
 
 @app.get("/comments/read/{n}", summary="Reads comments from database, returns null if no record", response_model=Optional[CommentsRow])
 def read_comment(ordinal: int, request: Request):

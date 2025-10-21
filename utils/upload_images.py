@@ -1,3 +1,7 @@
+"""
+Uploads image dataset from Huili into Supabase
+"""
+
 import requests, os, glob, time, mimetypes
 
 API = "http://127.0.0.1:8000/images"

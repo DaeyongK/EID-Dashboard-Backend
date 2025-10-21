@@ -7,6 +7,9 @@ from typing import Optional
 from .util_types.supabase_types import ImagesRow, CommentsRow
 
 def _ext_from_content_type(ct: str) -> str:
+    """
+    idk why this is important but it fixed an issue i had ty chatgpt
+    """
     mapping = {"image/png": ".png","image/jpeg": ".jpg","image/jpg": ".jpg","image/webp": ".webp","image/gif": ".gif"}
     return mapping.get((ct or "").lower(), "")
 
@@ -18,7 +21,7 @@ def upload_image_helper(supabase: Client, file: UploadFile, content: bytes) -> I
         ext = "." + file.filename.rsplit(".", 1)[1].lower()
     key = f"{datetime.utcnow():%Y/%m}/{uuid.uuid4()}{ext}"
 
-    # 1) Upload to Storage (path first, then bytes)
+    # Try uploading image to images bucket
     try:
         supabase.storage.from_(bucket).upload(
             key,
@@ -28,7 +31,7 @@ def upload_image_helper(supabase: Client, file: UploadFile, content: bytes) -> I
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
 
-    # 2) Insert DB row
+    # Try inserting row into images table
     try:
         resp = supabase.table("images").insert({"storage_path": key}).execute()
         if resp.data and len(resp.data) > 0:
@@ -46,6 +49,7 @@ def upload_image_helper(supabase: Client, file: UploadFile, content: bytes) -> I
                 raise RuntimeError("Insert succeeded but follow-up select returned no rows")
             row = fetched.data[0]
     except Exception as e:
+        # try remove failed insert
         try:
             supabase.storage.from_(bucket).remove([key])
         except Exception:
@@ -60,6 +64,9 @@ def upload_image_helper(supabase: Client, file: UploadFile, content: bytes) -> I
     )
 
 def _signed_url_for_storage_path(storage_path: str, supabase: Client, SIGNED_URL_TTL) -> Optional[str]:
+    """
+    Creates url for frontend to load from the images bucket
+    """
     bucket = "images"
     key = storage_path
     try:
@@ -69,6 +76,9 @@ def _signed_url_for_storage_path(storage_path: str, supabase: Client, SIGNED_URL
         return None
 
 def get_images(supabase: Client, start: int, end: int, SIGNED_URL_TTL):
+    """
+    Gets the images for gallery and singular image (inclusive)
+    """
     res = (
         supabase.table("images")
         .select("*")
@@ -92,6 +102,9 @@ def get_images(supabase: Client, start: int, end: int, SIGNED_URL_TTL):
     return out
 
 def _get_image_id(supabase, n: int) -> str:
+    """
+    Gets the image id (primary key) based on ordinal
+    """
     res = (
         supabase.table("images")
         .select("id")
@@ -104,6 +117,9 @@ def _get_image_id(supabase, n: int) -> str:
     return res.data["id"]
 
 def create_comment_helper(supabase, user_email, ordinal, comment):
+    """
+    Publishes comment
+    """
     image_id = _get_image_id(supabase, ordinal)
 
     res = (
@@ -127,6 +143,9 @@ def create_comment_helper(supabase, user_email, ordinal, comment):
 def read_user_comment_helper(
     supabase, user_email: str, ordinal: int
 ) -> Optional[CommentsRow]:
+    """
+    Reads most recent comment from a user
+    """
     image_id = _get_image_id(supabase, ordinal)
 
     res = (

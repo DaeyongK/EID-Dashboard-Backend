@@ -121,7 +121,7 @@ async def upload_image(
     
     return supabase_utils.upload_image_helper(supabase, file, content)
 
-@app.get("/images/range", summary="Get images in an ordinal range", 
+@app.get("/images/range", summary="Get images in an inclusive ordinal range", 
          description="max_window (20) prevents massive responses", response_model=list[ImagesRow])
 def get_images_range(
     start: int = Query(..., ge=1),
@@ -139,7 +139,7 @@ def get_images_range(
     
     return supabase_utils.get_images(supabase, start, end, SIGNED_URL_TTL)
 
-@app.post("/comments/write/{n}", response_model=CommentsRow)
+@app.post("/comments/write/{n}", summary="Writes comment to database", response_model=CommentsRow)
 def create_comment(
     n: int,
     request: Request,
@@ -154,7 +154,7 @@ def create_comment(
 
     return supabase_utils.create_comment_helper(supabase, user_email, n, body)
 
-@app.get("/comments/read/{n}", response_model=Optional[CommentsRow])
+@app.get("/comments/read/{n}", summary="Reads comments from database, returns null if no record", response_model=Optional[CommentsRow])
 def read_comment(ordinal: int, request: Request):
     """
     Given ordinal of image, read the user's previous comment, if no comment for that user in that image

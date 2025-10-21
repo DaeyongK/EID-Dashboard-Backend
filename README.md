@@ -29,6 +29,9 @@ BACKEND_URL=http://localhost:8000
 GOOGLE_CLIENT_ID={your_local_google_client_id}
 GOOGLE_CLIENT_SECRET={your_local_google_secret}
 SESSION_SECRET_KEY={your_session_secret_key}
+SUPABASE_URL="https://oenjtldngfposgqzrhry.supabase.co"
+SUPABASE_SERVICE_ROLE_KEY={your_supabase_service_role_key}
+SIGNED_URL_TTL="3600"
 ```
 
 5. Launch app

@@ -1,2 +1,5 @@
 fastapi[all]
 authlib
+supabase>=2
+pydantic
+requests

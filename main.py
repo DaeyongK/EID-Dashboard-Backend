@@ -1,20 +1,32 @@
 from typing import Optional
 
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request, Body, UploadFile, File, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
 from fastapi.responses import RedirectResponse
 from authlib.integrations.starlette_client import OAuth
 from starlette.middleware.sessions import SessionMiddleware
-
-
+from supabase import create_client, Client
+import uuid, io
+from datetime import datetime
+from utils.util_types.supabase_types import ImagesRow, CommentsRow
+from utils import supabase_utils
 
 load_dotenv()
 
-app = FastAPI()
+app = FastAPI(
+    title="EID_Dashboard_Backend",
+    description="Backend API for the EID Dashboard"
+)
 
 FRONTEND_URL = os.getenv("FRONTEND_URL")
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+SIGNED_URL_TTL = int(os.getenv("SIGNED_URL_TTL", "3600"))
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 oauth = OAuth()
 CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
 oauth.register(
@@ -69,6 +81,10 @@ async def auth(request: Request):
     """
     token = await oauth.google.authorize_access_token(request)
     user = token.get('userinfo')
+
+    if not user:
+        raise HTTPException(status_code=400, detail="No User info from Google")
+
     frontend_url = os.getenv("FRONTEND_URL")
     response = RedirectResponse(url=f"{frontend_url}/")
     response.set_cookie(key="user", value=user["email"])
@@ -91,3 +107,64 @@ async def me(request: Request):
     if not user_email:
         return {"authenticated": False}
     return {"authenticated": True, "email": user_email}
+
+@app.post("/images", summary="Upload an Image to Supabase Database", response_model=ImagesRow)
+async def upload_image(
+    file: UploadFile = File(...),
+):
+    """
+    Only if we want to add the feature of uploading more photos down the line
+    """
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty File")
+    
+    return supabase_utils.upload_image_helper(supabase, file, content)
+
+@app.get("/images/range", summary="Get images in an inclusive ordinal range", 
+         description="max_window (20) prevents massive responses", response_model=list[ImagesRow])
+def get_images_range(
+    start: int = Query(..., ge=1),
+    end: int = Query(..., ge=1),
+):
+    """
+    Inclusive Get Function for Images based on Ordinal
+    """
+    max_window: int = 20  # guardrail to prevent huge responses; tweak as needed
+
+    if end < start:
+        raise HTTPException(status_code=400, detail="end must be >= start")
+    if (end - start + 1) > max_window:
+        raise HTTPException(status_code=400, detail=f"range too large; max {max_window}")
+    
+    return supabase_utils.get_images(supabase, start, end, SIGNED_URL_TTL)
+
+@app.post("/comments/write/{n}", summary="Writes comment to database", response_model=CommentsRow)
+def create_comment(
+    n: int,
+    request: Request,
+    damage_sev: int,
+    body: str = Body(..., embed=False),
+):
+    """
+    Publishes comment to database for users
+    """
+    user_email = request.cookies.get("user")
+    if not user_email:
+        raise HTTPException(status_code=401, detail="No user identity, please authenticate")
+    if not (0 <= damage_sev <= 3):
+        raise HTTPException(status_code=401, detail="Damage severity must be between 0 and 3 (inclusive)")
+
+    return supabase_utils.create_comment_helper(supabase, user_email, n, body, damage_sev)
+
+@app.get("/comments/read/{n}", summary="Reads comments from database, returns null if no record", response_model=Optional[CommentsRow])
+def read_comment(ordinal: int, request: Request):
+    """
+    Given ordinal of image, read the user's previous comment, if no comment for that user in that image
+    return null
+    """
+    user_email = request.cookies.get("user")
+    if not user_email:
+        raise HTTPException(status_code=401, detail="No user identity, please authenticate")
+
+    return supabase_utils.read_user_comment_helper(supabase, user_email, ordinal)

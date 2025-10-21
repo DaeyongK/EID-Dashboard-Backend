@@ -31,6 +31,7 @@ GOOGLE_CLIENT_SECRET={your_local_google_secret}
 SESSION_SECRET_KEY={your_session_secret_key}
 SUPABASE_URL="https://oenjtldngfposgqzrhry.supabase.co"
 SUPABASE_SERVICE_ROLE_KEY={your_supabase_service_role_key}
+SUPABASE_PUBLIC_KEY={your_supabase_public_frontend_key}
 SIGNED_URL_TTL="3600"
 ```
 

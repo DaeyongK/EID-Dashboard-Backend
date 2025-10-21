@@ -10,6 +10,8 @@ from starlette.middleware.sessions import SessionMiddleware
 from supabase import create_client, Client
 import uuid, io
 from datetime import datetime
+from utils.util_types.supabase_types import ImagesRow
+from utils import supabase_utils
 
 load_dotenv()
 
@@ -17,10 +19,10 @@ app = FastAPI()
 
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 SUPABASE_URL = os.environ["SUPABASE_URL"]
-# Worry about this when we hosting
-# SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 SIGNED_URL_TTL = int(os.getenv("SIGNED_URL_TTL", "3600"))
 
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 oauth = OAuth()
 CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
@@ -76,6 +78,10 @@ async def auth(request: Request):
     """
     token = await oauth.google.authorize_access_token(request)
     user = token.get('userinfo')
+
+    if not user:
+        raise HTTPException(status_code=400, detail="No User info from Google")
+
     frontend_url = os.getenv("FRONTEND_URL")
     response = RedirectResponse(url=f"{frontend_url}/")
     response.set_cookie(key="user", value=user["email"])
@@ -98,3 +104,13 @@ async def me(request: Request):
     if not user_email:
         return {"authenticated": False}
     return {"authenticated": True, "email": user_email}
+
+@app.post("/images", response_model=ImagesRow)
+async def upload_image(
+    file: UploadFile = File(...),
+):
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty File")
+    
+    return supabase_utils.upload_image_helper(supabase, file, content)

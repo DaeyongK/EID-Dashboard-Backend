@@ -5,6 +5,8 @@ class ImagesRow(BaseModel):
     id: str
     storage_path: str
     created_at: Optional[str] = None
+    ordinal: int
+    url: Optional[str] = None
 
 class CommentsRow(BaseModel):
     email_id: str

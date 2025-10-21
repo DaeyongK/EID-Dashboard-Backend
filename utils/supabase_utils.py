@@ -3,6 +3,7 @@ from datetime import datetime
 import uuid
 from fastapi import HTTPException, UploadFile
 from supabase import Client
+from typing import Optional
 from .util_types.supabase_types import ImagesRow
 
 def _ext_from_content_type(ct: str) -> str:
@@ -55,4 +56,37 @@ def upload_image_helper(supabase: Client, file: UploadFile, content: bytes) -> I
         id=row["id"],
         storage_path=row["storage_path"],
         created_at=row["created_at"],
+        ordinal=row["ordinal"]
     )
+
+def _signed_url_for_storage_path(storage_path: str, supabase: Client, SIGNED_URL_TTL) -> Optional[str]:
+    bucket = "images"
+    key = storage_path
+    try:
+        signed = supabase.storage.from_(bucket).create_signed_url(key, SIGNED_URL_TTL)
+        return signed.get("signedURL")
+    except Exception as e:
+        return None
+
+def get_images(supabase: Client, start: int, end: int, SIGNED_URL_TTL):
+    res = (
+        supabase.table("images")
+        .select("*")
+        .gte("ordinal", start)
+        .lte("ordinal", end)
+        .order("ordinal", desc=False)
+        .execute()
+    )
+
+    rows = res.data or []
+    out: list[ImagesRow] = []
+    for r in rows:
+        out.append(ImagesRow(
+            id=r["id"],
+            storage_path=r["storage_path"],
+            created_at=r.get("created_at"),
+            ordinal=r["ordinal"],
+            url=_signed_url_for_storage_path(r["storage_path"], supabase, SIGNED_URL_TTL),
+        ))
+
+    return out

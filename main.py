@@ -15,7 +15,10 @@ from utils import supabase_utils
 
 load_dotenv()
 
-app = FastAPI()
+app = FastAPI(
+    title="EID_Dashboard_Backend",
+    description="Backend API for the EID Dashboard"
+)
 
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 SUPABASE_URL = os.environ["SUPABASE_URL"]
@@ -105,12 +108,33 @@ async def me(request: Request):
         return {"authenticated": False}
     return {"authenticated": True, "email": user_email}
 
-@app.post("/images", response_model=ImagesRow)
+@app.post("/images", summary="Upload an Image to Supabase Database", response_model=ImagesRow)
 async def upload_image(
     file: UploadFile = File(...),
 ):
+    """
+    Only if we want to add the feature of uploading more photos down the line
+    """
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail="Empty File")
     
     return supabase_utils.upload_image_helper(supabase, file, content)
+
+@app.get("/images/range", summary="Get images in an ordinal range", 
+         description="max_window (20) prevents massive responses", response_model=list[ImagesRow])
+def get_images_range(
+    start: int = Query(..., ge=1),
+    end: int = Query(..., ge=1),
+):
+    """
+    Inclusive Get Function for Images based on Ordinal
+    """
+    max_window: int = 20  # guardrail to prevent huge responses; tweak as needed
+
+    if end < start:
+        raise HTTPException(status_code=400, detail="end must be >= start")
+    if (end - start + 1) > max_window:
+        raise HTTPException(status_code=400, detail=f"range too large; max {max_window}")
+    
+    return supabase_utils.get_images(supabase, start, end, SIGNED_URL_TTL)

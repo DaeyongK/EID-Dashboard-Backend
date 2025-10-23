@@ -12,6 +12,7 @@ import uuid, io
 from datetime import datetime
 from utils.util_types.supabase_types import ImagesRow, CommentsRow
 from utils import supabase_utils
+import json
 
 load_dotenv()
 
@@ -87,7 +88,10 @@ async def auth(request: Request):
 
     frontend_url = os.getenv("FRONTEND_URL")
     response = RedirectResponse(url=f"{frontend_url}/")
-    response.set_cookie(key="user", value=user["email"])
+    response.set_cookie(key="user", value=json.dumps({
+        "email": user["email"],
+        "picture": user["picture"],
+    }))
     return response
 
 @app.get("/me", summary="Get current authenticated user")
@@ -103,10 +107,15 @@ async def me(request: Request):
             - "authenticated" (bool): True if the user is logged in.
             - "email" (str, optional): The user's email if authenticated.
     """
-    user_email = request.cookies.get("user")
-    if not user_email:
+    user_cookie = request.cookies.get("user")
+    if not user_cookie:
         return {"authenticated": False}
-    return {"authenticated": True, "email": user_email}
+    user = json.loads(user_cookie)
+    return {
+        "authenticated": True, 
+        "email": user["email"],
+        "picture": user["picture"],
+    }
 
 @app.post("/images", summary="Upload an Image to Supabase Database", response_model=ImagesRow)
 async def upload_image(

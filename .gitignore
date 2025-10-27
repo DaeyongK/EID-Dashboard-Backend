@@ -106,3 +106,7 @@ venv.bak/
 
 # Mac OS
 .DS_Store
+
+# Others
+gcs_credentials.json
+eid_swin.pth

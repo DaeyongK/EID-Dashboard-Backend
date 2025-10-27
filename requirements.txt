@@ -3,3 +3,6 @@ authlib
 supabase>=2
 pydantic
 requests
+torch
+torchvision
+google-cloud-storage

@@ -11,8 +11,9 @@ from supabase import create_client, Client
 import uuid, io
 from datetime import datetime
 from utils.util_types.supabase_types import ImagesRow, CommentsRow
-from utils import supabase_utils
+from utils import inference, supabase_utils
 import json
+import asyncio
 
 load_dotenv()
 
@@ -46,6 +47,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+def startup_event():
+    inference.download_model()
+    global model
+    model = inference.load_model()
 
 @app.get("/")
 async def root():
@@ -177,3 +184,15 @@ def read_comment(ordinal: int, request: Request):
         raise HTTPException(status_code=401, detail="No user identity, please authenticate")
 
     return supabase_utils.read_user_comment_helper(supabase, user_email, ordinal)
+
+@app.get("/infer/{ordinal}", summary="Performs model inference on an image by ordinal", response_model=int)
+async def infer_image(ordinal: int):
+    """
+    Asynchronous endpoint to perform inference on an image by ordinal.
+    """
+    images = await asyncio.to_thread(supabase_utils.get_images, supabase, ordinal, ordinal, SIGNED_URL_TTL)
+    if not images:
+        raise HTTPException(status_code=404, detail=f"No image found with ordinal {ordinal}")
+    img_url = images[0].url
+    pred_class = await asyncio.to_thread(inference.make_inference, model, img_url)
+    return pred_class

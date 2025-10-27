@@ -21,26 +21,22 @@ venv\Scripts\activate.bat
 pip install -r requirements.txt
 ```
 
-4. Create .env file in root (refer to text channels for client ID and secret)
+4. Create `.env` file in root (refer to text channels for client ID and secret), and copy paste necessary values (shared on Teams)
 ```bash
 ENVIRONMENT=development
 FRONTEND_URL=http://localhost:3000
 BACKEND_URL=http://localhost:8000
-GOOGLE_CLIENT_ID={your_local_google_client_id}
-GOOGLE_CLIENT_SECRET={your_local_google_secret}
-SESSION_SECRET_KEY={your_session_secret_key}
-SUPABASE_URL="https://oenjtldngfposgqzrhry.supabase.co"
-SUPABASE_SERVICE_ROLE_KEY={your_supabase_service_role_key}
-SUPABASE_PUBLIC_KEY={your_supabase_public_frontend_key}
-SIGNED_URL_TTL="3600"
+...
 ```
 
-5. Launch app
+5. Download `gcs_credentials.json` (shared on Teams) into root directory
+
+6. Launch app
 ```bash
 uvicorn main:app --reload
 ```
 
-6. Reference backend API descriptions by navigating to [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+7. Reference backend API descriptions by navigating to [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
 
 

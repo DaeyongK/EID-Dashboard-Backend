@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request, Body, UploadFile, File, HTTPException, Que
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from authlib.integrations.starlette_client import OAuth
 from starlette.middleware.sessions import SessionMiddleware
 from supabase import create_client, Client
@@ -18,8 +18,7 @@ import asyncio
 load_dotenv()
 
 app = FastAPI(
-    title="EID_Dashboard_Backend",
-    description="Backend API for the EID Dashboard"
+    title="EID_Dashboard_Backend", description="Backend API for the EID Dashboard"
 )
 
 FRONTEND_URL = os.getenv("FRONTEND_URL")
@@ -30,13 +29,13 @@ SIGNED_URL_TTL = int(os.getenv("SIGNED_URL_TTL", "3600"))
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 oauth = OAuth()
-CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
+CONF_URL = "https://accounts.google.com/.well-known/openid-configuration"
 oauth.register(
-    name='google',
+    name="google",
     server_metadata_url=CONF_URL,
     client_id=os.getenv("GOOGLE_CLIENT_ID"),
     client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
-    client_kwargs={'scope': 'openid email profile'}
+    client_kwargs={"scope": "openid email profile"},
 )
 
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY"))
@@ -48,15 +47,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.on_event("startup")
 def startup_event():
     inference.download_model()
     global model
     model = inference.load_model()
 
+
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
+
 
 @app.get("/login", summary="Initiate Google OAuth login")
 async def login(request: Request):
@@ -70,8 +72,22 @@ async def login(request: Request):
     Returns:
         RedirectResponse: Redirects the user's browser to Google's login page.
     """
-    redirect_uri = request.url_for('auth')
+    redirect_uri = request.url_for("auth")
     return await oauth.google.authorize_redirect(request, redirect_uri)
+
+
+@app.post("/logout", summary="Handle Google OAuth logout")
+async def logout(request: Request):
+    """
+    Logs out the current user by clearing their authentication cookie.
+
+    Returns:
+        JSONResponse: JSON object indicating successful logout.
+    """
+    response = JSONResponse({"ok": True})
+    response.delete_cookie(key="user")
+    return response
+
 
 @app.get("/auth", summary="Handle Google OAuth callback")
 async def auth(request: Request):
@@ -88,18 +104,24 @@ async def auth(request: Request):
         a cookie with their email.
     """
     token = await oauth.google.authorize_access_token(request)
-    user = token.get('userinfo')
+    user = token.get("userinfo")
 
     if not user:
         raise HTTPException(status_code=400, detail="No User info from Google")
 
     frontend_url = os.getenv("FRONTEND_URL")
     response = RedirectResponse(url=f"{frontend_url}/")
-    response.set_cookie(key="user", value=json.dumps({
-        "email": user["email"],
-        "picture": user["picture"],
-    }))
+    response.set_cookie(
+        key="user",
+        value=json.dumps(
+            {
+                "email": user["email"],
+                "picture": user["picture"],
+            }
+        ),
+    )
     return response
+
 
 @app.get("/me", summary="Get current authenticated user")
 async def me(request: Request):
@@ -119,12 +141,15 @@ async def me(request: Request):
         return {"authenticated": False}
     user = json.loads(user_cookie)
     return {
-        "authenticated": True, 
+        "authenticated": True,
         "email": user["email"],
         "picture": user["picture"],
     }
 
-@app.post("/images", summary="Upload an Image to Supabase Database", response_model=ImagesRow)
+
+@app.post(
+    "/images", summary="Upload an Image to Supabase Database", response_model=ImagesRow
+)
 async def upload_image(
     file: UploadFile = File(...),
 ):
@@ -134,11 +159,16 @@ async def upload_image(
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail="Empty File")
-    
+
     return supabase_utils.upload_image_helper(supabase, file, content)
 
-@app.get("/images/range", summary="Get images in an inclusive ordinal range", 
-         description="max_window (20) prevents massive responses", response_model=list[ImagesRow])
+
+@app.get(
+    "/images/range",
+    summary="Get images in an inclusive ordinal range",
+    description="max_window (20) prevents massive responses",
+    response_model=list[ImagesRow],
+)
 def get_images_range(
     start: int = Query(..., ge=1),
     end: int = Query(..., ge=1),
@@ -151,11 +181,18 @@ def get_images_range(
     if end < start:
         raise HTTPException(status_code=400, detail="end must be >= start")
     if (end - start + 1) > max_window:
-        raise HTTPException(status_code=400, detail=f"range too large; max {max_window}")
-    
+        raise HTTPException(
+            status_code=400, detail=f"range too large; max {max_window}"
+        )
+
     return supabase_utils.get_images(supabase, start, end, SIGNED_URL_TTL)
 
-@app.post("/comments/write/{n}", summary="Writes comment to database", response_model=CommentsRow)
+
+@app.post(
+    "/comments/write/{n}",
+    summary="Writes comment to database",
+    response_model=CommentsRow,
+)
 def create_comment(
     n: int,
     request: Request,
@@ -167,13 +204,25 @@ def create_comment(
     """
     user_email = request.cookies.get("user")
     if not user_email:
-        raise HTTPException(status_code=401, detail="No user identity, please authenticate")
+        raise HTTPException(
+            status_code=401, detail="No user identity, please authenticate"
+        )
     if not (0 <= damage_sev <= 3):
-        raise HTTPException(status_code=401, detail="Damage severity must be between 0 and 3 (inclusive)")
+        raise HTTPException(
+            status_code=401,
+            detail="Damage severity must be between 0 and 3 (inclusive)",
+        )
 
-    return supabase_utils.create_comment_helper(supabase, user_email, n, body, damage_sev)
+    return supabase_utils.create_comment_helper(
+        supabase, user_email, n, body, damage_sev
+    )
 
-@app.get("/comments/read/{n}", summary="Reads comments from database, returns null if no record", response_model=Optional[CommentsRow])
+
+@app.get(
+    "/comments/read/{n}",
+    summary="Reads comments from database, returns null if no record",
+    response_model=Optional[CommentsRow],
+)
 def read_comment(ordinal: int, request: Request):
     """
     Given ordinal of image, read the user's previous comment, if no comment for that user in that image
@@ -181,18 +230,29 @@ def read_comment(ordinal: int, request: Request):
     """
     user_email = request.cookies.get("user")
     if not user_email:
-        raise HTTPException(status_code=401, detail="No user identity, please authenticate")
+        raise HTTPException(
+            status_code=401, detail="No user identity, please authenticate"
+        )
 
     return supabase_utils.read_user_comment_helper(supabase, user_email, ordinal)
 
-@app.get("/infer/{ordinal}", summary="Performs model inference on an image by ordinal", response_model=int)
+
+@app.get(
+    "/infer/{ordinal}",
+    summary="Performs model inference on an image by ordinal",
+    response_model=int,
+)
 async def infer_image(ordinal: int):
     """
     Asynchronous endpoint to perform inference on an image by ordinal.
     """
-    images = await asyncio.to_thread(supabase_utils.get_images, supabase, ordinal, ordinal, SIGNED_URL_TTL)
+    images = await asyncio.to_thread(
+        supabase_utils.get_images, supabase, ordinal, ordinal, SIGNED_URL_TTL
+    )
     if not images:
-        raise HTTPException(status_code=404, detail=f"No image found with ordinal {ordinal}")
+        raise HTTPException(
+            status_code=404, detail=f"No image found with ordinal {ordinal}"
+        )
     img_url = images[0].url
     pred_class = await asyncio.to_thread(inference.make_inference, model, img_url)
     return pred_class

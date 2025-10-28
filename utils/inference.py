@@ -59,4 +59,9 @@ def make_inference(model, img_url: str):
     with torch.no_grad():
         outputs = model(img_tensor)
         pred_class = torch.argmax(outputs, dim=1).item()
-    return pred_class
+    # 0: Irrelevant or non-informative to infrastructure damage assessment
+    # 1: No Damage
+    # 2: Mild Damage
+    # 3: Severe Damage
+    pred_map = {0: 1, 1: 2, 2: 3, 3: 0}
+    return pred_map[pred_class]

@@ -12,6 +12,7 @@ import uuid, io
 from datetime import datetime
 from utils.util_types.supabase_types import ImagesRow, CommentsRow
 from utils import inference, supabase_utils
+from pydantic import BaseModel
 import json
 import asyncio
 
@@ -187,6 +188,9 @@ def get_images_range(
 
     return supabase_utils.get_images(supabase, start, end, SIGNED_URL_TTL)
 
+class CommentCreate(BaseModel):
+    damage_sev: int
+    body: str
 
 @app.post(
     "/comments/write/{n}",
@@ -196,25 +200,25 @@ def get_images_range(
 def create_comment(
     n: int,
     request: Request,
-    damage_sev: int,
-    body: str = Body(..., embed=False),
+    comment: CommentCreate,
 ):
     """
     Publishes comment to database for users
     """
-    user_email = request.cookies.get("user")
-    if not user_email:
+    user_cookie = request.cookies.get("user")
+    user_email = json.loads(user_cookie).get("email") if user_cookie else None
+    if not user_cookie:
         raise HTTPException(
             status_code=401, detail="No user identity, please authenticate"
         )
-    if not (0 <= damage_sev <= 3):
+    if not (0 <= comment.damage_sev <= 3):
         raise HTTPException(
-            status_code=401,
+            status_code=422,
             detail="Damage severity must be between 0 and 3 (inclusive)",
         )
 
     return supabase_utils.create_comment_helper(
-        supabase, user_email, n, body, damage_sev
+        supabase, user_email, n, comment.body, comment.damage_sev
     )
 
 

@@ -12,7 +12,7 @@ import uuid, io
 from datetime import datetime
 from utils.util_types.supabase_types import ImagesRow, CommentsRow
 from utils import inference, supabase_utils
-from pydantic import BaseModel
+from utils.supabase_utils import CommentCreate
 import json
 import asyncio
 
@@ -188,9 +188,6 @@ def get_images_range(
 
     return supabase_utils.get_images(supabase, start, end, SIGNED_URL_TTL)
 
-class CommentCreate(BaseModel):
-    damage_sev: int
-    body: str
 
 @app.post(
     "/comments/write/{n}",

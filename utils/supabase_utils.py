@@ -5,6 +5,12 @@ from fastapi import HTTPException, UploadFile
 from supabase import Client
 from typing import Optional
 from .util_types.supabase_types import ImagesRow, CommentsRow
+from pydantic import BaseModel
+
+
+class CommentCreate(BaseModel):
+    damage_sev: int
+    body: str
 
 def _ext_from_content_type(ct: str) -> str:
     """

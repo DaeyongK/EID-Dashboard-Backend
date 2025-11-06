@@ -138,9 +138,12 @@ async def me(request: Request):
             - "email" (str, optional): The user's email if authenticated.
     """
     user_cookie = request.cookies.get("user")
+    
     if not user_cookie:
         return {"authenticated": False}
+    
     user = json.loads(user_cookie)
+    
     return {
         "authenticated": True,
         "email": user["email"],
@@ -158,10 +161,11 @@ async def upload_image(
     Only if we want to add the feature of uploading more photos down the line
     """
     content = await file.read()
+    
     if not content:
         raise HTTPException(status_code=400, detail="Empty File")
 
-    return supabase_utils.upload_image_helper(supabase, file, content)
+    supabase_utils.upload_image_helper(supabase, file, content)
 
 
 @app.get(
@@ -204,10 +208,12 @@ def create_comment(
     """
     user_cookie = request.cookies.get("user")
     user_email = json.loads(user_cookie).get("email") if user_cookie else None
+    
     if not user_cookie:
         raise HTTPException(
             status_code=401, detail="No user identity, please authenticate"
         )
+    
     if not (0 <= comment.damage_sev <= 3):
         raise HTTPException(
             status_code=422,
@@ -215,11 +221,11 @@ def create_comment(
         )
     
     if not supabase_utils.read_user_comment_helper(supabase, user_email, n):
-        return supabase_utils.create_comment_helper(
+        supabase_utils.create_comment_helper(
             supabase, user_email, n, comment.body, comment.damage_sev
         )
 
-    return supabase_utils.update_user_comment_helper(supabase, user_email, n, comment.body, comment.damage_sev)
+    supabase_utils.update_user_comment_helper(supabase, user_email, n, comment.body, comment.damage_sev)
 
 
 @app.get(
@@ -233,6 +239,7 @@ def read_comment(ordinal: int, request: Request):
     return null
     """
     user_email = request.cookies.get("user")
+    
     if not user_email:
         raise HTTPException(
             status_code=401, detail="No user identity, please authenticate"

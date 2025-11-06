@@ -191,7 +191,7 @@ def get_images_range(
 
 @app.post(
     "/comments/write/{n}",
-    summary="Writes comment to database",
+    summary="Writes comment to database, updates if comment exists",
     response_model=CommentsRow,
 )
 def create_comment(
@@ -213,10 +213,13 @@ def create_comment(
             status_code=422,
             detail="Damage severity must be between 0 and 3 (inclusive)",
         )
+    
+    if not supabase_utils.read_user_comment_helper(supabase, user_email, n):
+        return supabase_utils.create_comment_helper(
+            supabase, user_email, n, comment.body, comment.damage_sev
+        )
 
-    return supabase_utils.create_comment_helper(
-        supabase, user_email, n, comment.body, comment.damage_sev
-    )
+    return supabase_utils.update_user_comment_helper(supabase, user_email, n, comment.body, comment.damage_sev)
 
 
 @app.get(

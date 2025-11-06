@@ -62,13 +62,6 @@ def upload_image_helper(supabase: Client, file: UploadFile, content: bytes) -> I
             pass
         raise HTTPException(status_code=500, detail=f"Images Table Insert Failed: {e}")
 
-    return ImagesRow(
-        id=row["id"],
-        storage_path=row["storage_path"],
-        created_at=row["created_at"],
-        ordinal=row["ordinal"]
-    )
-
 def _signed_url_for_storage_path(storage_path: str, supabase: Client, SIGNED_URL_TTL) -> Optional[str]:
     """
     Creates url for frontend to load from the images bucket
@@ -137,16 +130,6 @@ def create_comment_helper(supabase, user_email, ordinal, comment, damage):
     if not res.data:
         raise HTTPException(status_code=500, detail="Insert failed")
 
-    row = res.data[0]
-
-    return CommentsRow(
-        email_id = row["email_id"],
-        image_id = row["image_id"],
-        body = row["body"],
-        damage = row["damage_sev"],
-        created_at = row["created_at"]
-    )
-
 def read_user_comment_helper(
     supabase, user_email: str, ordinal: int
 ) -> Optional[CommentsRow]:
@@ -177,3 +160,28 @@ def read_user_comment_helper(
         damage = r["damage_sev"],
         created_at=r["created_at"],
     )
+
+def update_user_comment_helper(
+        supabase, user_email, ordinal, comment, damage
+):
+    """
+    Update comments table with new damange and comment
+    """
+    image_id = _get_image_id(supabase, ordinal)
+
+    res = (
+        supabase.table("comments")
+        .update({
+            "body": comment,
+            "damage_sev": damage
+        })
+        .match({
+            "email_id": user_email,
+            "image_id": image_id
+        })
+        .execute()
+    )
+
+    if not res.data:
+        raise HTTPException(status_code=500, detail="Update failed")
+

@@ -218,7 +218,6 @@ def get_images_with_damage_aggregates(
 @app.post(
     "/comments/write/{n}",
     summary="Writes comment to database, updates if comment exists",
-    response_model=CommentsRow,
 )
 def create_comment(
     n: int,

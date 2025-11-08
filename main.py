@@ -192,6 +192,28 @@ def get_images_range(
 
     return supabase_utils.get_images(supabase, start, end, SIGNED_URL_TTL)
 
+@app.get(
+    "/images/aggregate_damages",
+    summary="Get images with aggregated damage severities",
+    description="Fetches images in range and summarizes comment severity counts for each image.",
+    response_model=list[ImagesRow],
+)
+def get_images_with_damage_aggregates(
+    start: int = Query(..., ge=1),
+    end: int = Query(..., ge=1),
+):
+    """
+    For each image in the range [start, end], return an ImagesRow with a damage_counts dict
+    """
+    max_window = 20
+    if end < start:
+        raise HTTPException(status_code=400, detail="end must be >= start")
+    if (end - start + 1) > max_window:
+        raise HTTPException(status_code=400, detail=f"Range too large; max {max_window}")
+
+    return supabase_utils.get_damage_aggregates_for_images(
+        supabase, start, end, SIGNED_URL_TTL
+    )
 
 @app.post(
     "/comments/write/{n}",

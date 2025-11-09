@@ -126,6 +126,37 @@ def get_images_labeled(supabase: Client, start: int, end: int, user_email, SIGNE
 
     return out
 
+def get_damage_aggregates_for_images(
+    supabase: Client, start: int, end: int, SIGNED_URL_TTL: int
+) -> list[ImagesRow]:
+    """
+    Fetches images in the given range and aggregates comment damage severities (0–3) for each image.
+    Returns list of ImagesRow objects with damage_counts dict.
+    """
+    images = get_images(supabase, start, end, SIGNED_URL_TTL)
+    if not images:
+        return []
+    image_ids = [img.id for img in images]
+    res = (
+        supabase.table("comments")
+        .select("image_id, damage_sev")
+        .in_("image_id", image_ids)
+        .execute()
+    )
+    comment_rows = res.data or []
+    damage_map: dict[str, dict[int, int]] = {}
+    for c in comment_rows:
+        img_id = c["image_id"]
+        sev = c.get("damage_sev")
+        if img_id not in damage_map:
+            damage_map[img_id] = {0: 0, 1: 0, 2: 0, 3: 0}
+        if sev in damage_map[img_id]:
+            damage_map[img_id][sev] += 1
+    for img in images:
+        img.damage_severities = damage_map.get(img.id, {0: 0, 1: 0, 2: 0, 3: 0})
+
+    return images
+
 def _get_image_id(supabase, n: int) -> str:
     """
     Gets the image id (primary key) based on ordinal

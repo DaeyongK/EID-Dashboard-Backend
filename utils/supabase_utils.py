@@ -102,7 +102,7 @@ def get_images(supabase: Client, start: int, end: int, SIGNED_URL_TTL):
 
 def get_images_labeled(supabase: Client, start: int, end: int, user_email, SIGNED_URL_TTL):
     """
-    Gets the images for user_email and limits to first n images, ordered by most recent
+    Gets the labeled images for user_email and limits to range in (start, end), ordered by most recent
     """
     res = (
         supabase.table("comments")

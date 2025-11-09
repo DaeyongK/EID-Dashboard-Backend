@@ -291,7 +291,7 @@ async def infer_image(ordinal: int):
 
 @app.get(
     "/images/labeled/",
-    summary="Get first n LABELLED images for current user, or all images if fewer than n images are labeled",
+    summary="Get a range of LABELLED images for current user",
     description="max_window (20) prevents massive responses",
     response_model=list[ImagesRow],
 )
@@ -303,7 +303,7 @@ def get_images_labeled_range(
     
 ):
     """
-    Get Function for Labeled Images - first n images or all images, if fewer than n images are labeled
+    Get Function for Labeled Images - images in range (start, end) from the table of labeled images for current user, newest first
     """
     max_window: int = 20  # guardrail to prevent huge responses; tweak as needed
 

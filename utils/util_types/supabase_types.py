@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 class ImagesRow(BaseModel):
     id: str
@@ -7,6 +7,7 @@ class ImagesRow(BaseModel):
     created_at: Optional[str] = None
     ordinal: int
     url: Optional[str] = None
+    damage_severities: Optional[Dict[int, int]] = None
 
 class CommentsRow(BaseModel):
     email_id: str

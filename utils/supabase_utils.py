@@ -100,6 +100,32 @@ def get_images(supabase: Client, start: int, end: int, SIGNED_URL_TTL):
 
     return out
 
+def get_images_labeled(supabase: Client, start: int, end: int, user_email, SIGNED_URL_TTL):
+    """
+    Gets the labeled images for user_email and limits to range in (start, end), ordered by most recent
+    """
+    res = (
+        supabase.table("comments")
+        .select("*, images(storage_path, ordinal)") # join tables, only keep storage_path and ordinal from images table
+        .eq("email_id", user_email)
+        .order("created_at", desc=True)
+        .range(start-1, end-1)
+        .execute()
+    )
+
+    rows = res.data or []
+    out: list[ImagesRow] = []
+    for r in rows:
+        out.append(ImagesRow(
+            id=r["image_id"],
+            storage_path=r["images"]["storage_path"], # from nested entry
+            created_at=r["created_at"], # technically labeled at
+            ordinal=r["images"]["ordinal"], # from nested entry
+            url=_signed_url_for_storage_path(r["images"]["storage_path"], supabase, SIGNED_URL_TTL),
+        ))
+
+    return out
+
 def get_damage_aggregates_for_images(
     supabase: Client, start: int, end: int, SIGNED_URL_TTL: int
 ) -> list[ImagesRow]:

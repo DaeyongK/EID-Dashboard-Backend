@@ -289,3 +289,38 @@ async def infer_image(ordinal: int):
     img_url = images[0].url
     pred_class = await asyncio.to_thread(inference.make_inference, model, img_url)
     return pred_class
+
+@app.get(
+    "/images/labeled/",
+    summary="Get a range of LABELLED images for current user",
+    description="max_window (20) prevents massive responses",
+    response_model=list[ImagesRow],
+)
+def get_images_labeled_range(
+    request: Request,
+    start: int = Query(..., ge=1), # mandatory(...), greater than or equal to 1
+    end: int = Query(..., ge=1) # mandatory(...), greater than or equal to 1
+
+    
+):
+    """
+    Get Function for Labeled Images - images in range (start, end) from the table of labeled images for current user, newest first
+    """
+    max_window: int = 20  # guardrail to prevent huge responses; tweak as needed
+
+    if end < start:
+        raise HTTPException(status_code=400, detail="end must be >= start")
+    if (end - start + 1) > max_window:
+        raise HTTPException(
+            status_code=400, detail=f"range too large; max {max_window}"
+        )
+    
+    user_cookie = request.cookies.get("user")
+    user_email = json.loads(user_cookie).get("email") if user_cookie else None
+
+    if not user_email:
+        raise HTTPException(
+            status_code=401, detail="No user identity, please authenticate"
+        )
+
+    return supabase_utils.get_images_labeled(supabase, start, end, user_email, SIGNED_URL_TTL)

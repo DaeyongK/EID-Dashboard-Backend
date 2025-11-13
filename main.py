@@ -181,7 +181,7 @@ def get_images_range(
     """
     Inclusive Get Function for Images based on Ordinal
     """
-    max_window: int = 20  # guardrail to prevent huge responses; tweak as needed
+    max_window: int = 21  # guardrail to prevent huge responses; tweak as needed
 
     if end < start:
         raise HTTPException(status_code=400, detail="end must be >= start")
@@ -205,7 +205,7 @@ def get_images_with_damage_aggregates(
     """
     For each image in the range [start, end], return an ImagesRow with a damage_counts dict
     """
-    max_window = 20
+    max_window = 21
     if end < start:
         raise HTTPException(status_code=400, detail="end must be >= start")
     if (end - start + 1) > max_window:
@@ -293,7 +293,7 @@ async def infer_image(ordinal: int):
 @app.get(
     "/images/labeled/",
     summary="Get a range of LABELLED images for current user",
-    description="max_window (20) prevents massive responses",
+    description="max_window (21) prevents massive responses",
     response_model=list[ImagesRow],
 )
 def get_images_labeled_range(
@@ -306,7 +306,7 @@ def get_images_labeled_range(
     """
     Get Function for Labeled Images - images in range (start, end) from the list of unlabeled images for current user, newest first
     """
-    max_window: int = 20  # guardrail to prevent huge responses; tweak as needed
+    max_window: int = 21  # guardrail to prevent huge responses; tweak as needed
 
     if end < start:
         raise HTTPException(status_code=400, detail="end must be >= start")
@@ -328,7 +328,7 @@ def get_images_labeled_range(
 @app.get(
     "/images/unlabeled/",
     summary="Get a range of UNLABELLED images for current user",
-    description="max_window (20) prevents massive responses",
+    description="max_window (21) prevents massive responses",
     response_model=list[ImagesRow],
 )
 def get_images_unlabeled_range(
@@ -341,7 +341,7 @@ def get_images_unlabeled_range(
     """
     Get Function for Unlabeled Images - images in range (start, end) from the list of unlabeled images for current user, sorted by ordinal (smallest first)
     """
-    max_window: int = 20  # guardrail to prevent huge responses; tweak as needed
+    max_window: int = 21  # guardrail to prevent huge responses; tweak as needed
 
     if end < start:
         raise HTTPException(status_code=400, detail="end must be >= start")

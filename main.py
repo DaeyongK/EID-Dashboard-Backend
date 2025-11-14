@@ -15,6 +15,7 @@ from utils import inference, supabase_utils
 from utils.supabase_utils import CommentCreate
 import json
 import asyncio
+from analytics_scripts import refresh_image_stats, calculate_image_confusion
 
 load_dotenv()
 
@@ -138,12 +139,12 @@ async def me(request: Request):
             - "email" (str, optional): The user's email if authenticated.
     """
     user_cookie = request.cookies.get("user")
-    
+
     if not user_cookie:
         return {"authenticated": False}
-    
+
     user = json.loads(user_cookie)
-    
+
     return {
         "authenticated": True,
         "email": user["email"],
@@ -161,7 +162,7 @@ async def upload_image(
     Only if we want to add the feature of uploading more photos down the line
     """
     content = await file.read()
-    
+
     if not content:
         raise HTTPException(status_code=400, detail="Empty File")
 
@@ -181,7 +182,7 @@ def get_images_range(
     """
     Inclusive Get Function for Images based on Ordinal
     """
-    max_window: int = 20  # guardrail to prevent huge responses; tweak as needed
+    max_window: int = 21  # guardrail to prevent huge responses; tweak as needed
 
     if end < start:
         raise HTTPException(status_code=400, detail="end must be >= start")
@@ -191,6 +192,7 @@ def get_images_range(
         )
 
     return supabase_utils.get_images(supabase, start, end, SIGNED_URL_TTL)
+
 
 @app.get(
     "/images/aggregate_damages",
@@ -209,11 +211,14 @@ def get_images_with_damage_aggregates(
     if end < start:
         raise HTTPException(status_code=400, detail="end must be >= start")
     if (end - start + 1) > max_window:
-        raise HTTPException(status_code=400, detail=f"Range too large; max {max_window}")
+        raise HTTPException(
+            status_code=400, detail=f"Range too large; max {max_window}"
+        )
 
     return supabase_utils.get_damage_aggregates_for_images(
         supabase, start, end, SIGNED_URL_TTL
     )
+
 
 @app.post(
     "/comments/write/{n}",
@@ -229,24 +234,30 @@ def create_comment(
     """
     user_cookie = request.cookies.get("user")
     user_email = json.loads(user_cookie).get("email") if user_cookie else None
-    
+
     if not user_cookie:
         raise HTTPException(
             status_code=401, detail="No user identity, please authenticate"
         )
-    
+
     if not (0 <= comment.damage_sev <= 3):
         raise HTTPException(
             status_code=422,
             detail="Damage severity must be between 0 and 3 (inclusive)",
         )
-    
+
     if not supabase_utils.read_user_comment_helper(supabase, user_email, n):
         supabase_utils.create_comment_helper(
             supabase, user_email, n, comment.body, comment.damage_sev
         )
-
-    supabase_utils.update_user_comment_helper(supabase, user_email, n, comment.body, comment.damage_sev)
+    else:
+        supabase_utils.update_user_comment_helper(
+            supabase, user_email, n, comment.body, comment.damage_sev
+        )
+    # update stats table
+    refresh_image_stats.refresh_image_stats(supabase)
+    calculate_image_confusion.calculate_image_confusion(supabase)
+    calculate_image_confusion.update_model_confusion(supabase)
 
 
 @app.get(
@@ -290,6 +301,7 @@ async def infer_image(ordinal: int):
     pred_class = await asyncio.to_thread(inference.make_inference, model, img_url)
     return pred_class
 
+
 @app.get(
     "/images/labeled/",
     summary="Get a range of LABELLED images for current user",
@@ -298,15 +310,13 @@ async def infer_image(ordinal: int):
 )
 def get_images_labeled_range(
     request: Request,
-    start: int = Query(..., ge=1), # mandatory(...), greater than or equal to 1
-    end: int = Query(..., ge=1) # mandatory(...), greater than or equal to 1
-
-    
+    start: int = Query(..., ge=1),  # mandatory(...), greater than or equal to 1
+    end: int = Query(..., ge=1),  # mandatory(...), greater than or equal to 1
 ):
     """
     Get Function for Labeled Images - images in range (start, end) from the table of labeled images for current user, newest first
     """
-    max_window: int = 20  # guardrail to prevent huge responses; tweak as needed
+    max_window: int = 21  # guardrail to prevent huge responses; tweak as needed
 
     if end < start:
         raise HTTPException(status_code=400, detail="end must be >= start")
@@ -314,7 +324,7 @@ def get_images_labeled_range(
         raise HTTPException(
             status_code=400, detail=f"range too large; max {max_window}"
         )
-    
+
     user_cookie = request.cookies.get("user")
     user_email = json.loads(user_cookie).get("email") if user_cookie else None
 
@@ -323,4 +333,41 @@ def get_images_labeled_range(
             status_code=401, detail="No user identity, please authenticate"
         )
 
-    return supabase_utils.get_images_labeled(supabase, start, end, user_email, SIGNED_URL_TTL)
+    return supabase_utils.get_images_labeled(
+        supabase, start, end, user_email, SIGNED_URL_TTL
+    )
+
+
+@app.get("/analytics/me", summary="Gets analytics about authenticated user")
+def get_user_analytics(request: Request):
+    user_cookie = request.cookies.get("user")
+    user_email = json.loads(user_cookie).get("email") if user_cookie else None
+
+    if not user_email:
+        raise HTTPException(
+            status_code=401, detail="No user identity, please authenticate"
+        )
+
+    analytics = {}
+    num_comments = supabase_utils.get_user_num_comments(supabase, user_email)
+    analytics["num_comments"] = num_comments
+    dmg_aggregates = supabase_utils.get_damage_aggregates_for_user(supabase, user_email)
+    analytics["damage_aggregates"] = dmg_aggregates
+    predictions_and_confusions = supabase_utils.get_predictions_and_confusions_for_user(
+        supabase, user_email
+    )
+    analytics["predictions_and_confusions"] = predictions_and_confusions
+    return analytics
+
+
+@app.get("/analytics/overview", summary="Gets general analytics")
+def get_overview_analytics(request: Request):
+    analytics = {}
+
+    damage_aggregates_all = supabase_utils.get_damage_aggregates_all(supabase)
+    analytics["damage_aggregates_all"] = damage_aggregates_all
+
+    top_ds_avg_ds_all = supabase_utils.get_top_ds_and_avg_ds_all(supabase)
+    analytics["top_ds_vs_avg_ds"] = top_ds_avg_ds_all
+
+    return analytics

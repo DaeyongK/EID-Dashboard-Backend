@@ -357,7 +357,7 @@ def get_user_analytics(request: Request):
     analytics["damage_aggregates"] = dmg_aggregates
     analytics["user_skew"] = skew
     predictions_and_confusions = (
-        supabase_utils.get_pr0edictions_and_confusions_for_user(supabase, user_email)
+        supabase_utils.get_predictions_and_confusions_for_user(supabase, user_email)
     )
     analytics["predictions_and_confusions"] = predictions_and_confusions
     return analytics

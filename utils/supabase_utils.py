@@ -301,7 +301,8 @@ def get_damage_aggregates_for_user(supabase, user_email):
     if not resp.data:
         return dmg_aggregates
     for row in resp.data:
-        dmg_aggregates[row["damage_sev"]] += 1
+        sev_num = row["damage_sev"]
+        dmg_aggregates[f"sev_{sev_num}_count"] += 1
 
     dmg_values = np.array(list(dmg_aggregates.values()))
     std_dev = np.std(dmg_values, ddof=1)

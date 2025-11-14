@@ -351,10 +351,13 @@ def get_user_analytics(request: Request):
     analytics = {}
     num_comments = supabase_utils.get_user_num_comments(supabase, user_email)
     analytics["num_comments"] = num_comments
-    dmg_aggregates = supabase_utils.get_damage_aggregates_for_user(supabase, user_email)
-    analytics["damage_aggregates"] = dmg_aggregates
-    predictions_and_confusions = supabase_utils.get_predictions_and_confusions_for_user(
+    dmg_aggregates, skew = supabase_utils.get_damage_aggregates_for_user(
         supabase, user_email
+    )
+    analytics["damage_aggregates"] = dmg_aggregates
+    analytics["user_skew"] = skew
+    predictions_and_confusions = (
+        supabase_utils.get_pr0edictions_and_confusions_for_user(supabase, user_email)
     )
     analytics["predictions_and_confusions"] = predictions_and_confusions
     return analytics
@@ -364,8 +367,9 @@ def get_user_analytics(request: Request):
 def get_overview_analytics(request: Request):
     analytics = {}
 
-    damage_aggregates_all = supabase_utils.get_damage_aggregates_all(supabase)
+    damage_aggregates_all, skew = supabase_utils.get_damage_aggregates_all(supabase)
     analytics["damage_aggregates_all"] = damage_aggregates_all
+    analytics["total_skew"] = skew
 
     top_ds_avg_ds_all = supabase_utils.get_top_ds_and_avg_ds_all(supabase)
     analytics["top_ds_vs_avg_ds"] = top_ds_avg_ds_all

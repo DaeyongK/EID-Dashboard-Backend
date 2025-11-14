@@ -6,6 +6,7 @@ from supabase import Client
 from typing import Optional
 from .util_types.supabase_types import ImagesRow, CommentsRow
 from pydantic import BaseModel
+import numpy as np
 
 
 class CommentCreate(BaseModel):
@@ -283,7 +284,7 @@ def get_user_num_comments(supabase, user_email):
 
 def get_damage_aggregates_for_user(supabase, user_email):
     """
-    Gets the number of each damage level a user has labeled
+    Gets the number of each damage level a user has labeled and the skew
     """
     resp = (
         supabase.table("comments")
@@ -291,13 +292,28 @@ def get_damage_aggregates_for_user(supabase, user_email):
         .eq("email_id", user_email)
         .execute()
     )
-    dmg_aggregates = {0: 0, 1: 0, 2: 0, 3: 0}
+    dmg_aggregates = {
+        "sev_0_count": 0,
+        "sev_1_count": 0,
+        "sev_2_count": 0,
+        "sev_3_count": 0,
+    }
     if not resp.data:
         return dmg_aggregates
     for row in resp.data:
         dmg_aggregates[row["damage_sev"]] += 1
 
-    return dmg_aggregates
+    dmg_values = np.array(list(dmg_aggregates.values()))
+    std_dev = np.std(dmg_values, ddof=1)
+    if std_dev == 0:
+        skew = 0
+        return dmg_aggregates, skew
+
+    mean = np.mean(dmg_values)
+    diff = (dmg_values - mean) / std_dev
+    skew = 2 * np.sum(diff**3) / 3
+
+    return dmg_aggregates, skew
 
 
 def get_predictions_and_confusions_for_user(supabase, user_email):
@@ -315,7 +331,27 @@ def get_damage_aggregates_all(supabase):
     Gets total damage aggregates across all images
     """
     resp = supabase.rpc("get_damage_aggregates_all", {}).execute()
-    return resp.data[0] or {0: 0, 1: 0, 2: 0, 3: 0}
+    if not resp.data[0]:
+        return {
+            "sev_0_count": 0,
+            "sev_1_count": 0,
+            "sev_2_count": 0,
+            "sev_3_count": 0,
+        }, 0
+
+    dmg_aggregates = resp.data[0]
+
+    dmg_values = np.array(list(dmg_aggregates.values()))
+    std_dev = np.std(dmg_values, ddof=1)
+    if std_dev == 0:
+        skew = 0
+        return dmg_aggregates, skew
+
+    mean = np.mean(dmg_values)
+    diff = (dmg_values - mean) / std_dev
+    skew = 2 * np.sum(diff**3) / 3
+
+    return dmg_aggregates, skew
 
 
 def get_top_ds_and_avg_ds_all(supabase):

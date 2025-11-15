@@ -51,9 +51,18 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup_event():
-    inference.download_model()
-    global model
-    model = inference.load_model()
+    print(">>> Startup: beginning model download/load")
+    try:
+        inference.download_model()
+        print(">>> Startup: download ok")
+
+        global model
+        model = inference.load_model()
+        print(">>> Startup: model load ok")
+
+    except Exception as e:
+        print(">>> Startup ERROR:", e)
+        raise
 
 
 @app.get("/")

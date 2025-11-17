@@ -378,3 +378,41 @@ def get_images_unlabeled_range(
         )
 
     return supabase_utils.get_images_unlabeled(supabase, start, end, user_email, SIGNED_URL_TTL)
+
+@app.get("/analytics/me", summary="Gets analytics about authenticated user")
+def get_user_analytics(request: Request):
+    user_cookie = request.cookies.get("user")
+    user_email = json.loads(user_cookie).get("email") if user_cookie else None
+
+    if not user_email:
+        raise HTTPException(
+            status_code=401, detail="No user identity, please authenticate"
+        )
+
+    analytics = {}
+    num_comments = supabase_utils.get_user_num_comments(supabase, user_email)
+    analytics["num_comments"] = num_comments
+    dmg_aggregates, skew = supabase_utils.get_damage_aggregates_for_user(
+        supabase, user_email
+    )
+    analytics["damage_aggregates"] = dmg_aggregates
+    analytics["user_skew"] = skew
+    predictions_and_confusions = (
+        supabase_utils.get_predictions_and_confusions_for_user(supabase, user_email)
+    )
+    analytics["predictions_and_confusions"] = predictions_and_confusions
+    return analytics
+
+
+@app.get("/analytics/overview", summary="Gets general analytics")
+def get_overview_analytics(request: Request):
+    analytics = {}
+
+    damage_aggregates_all, skew = supabase_utils.get_damage_aggregates_all(supabase)
+    analytics["damage_aggregates_all"] = damage_aggregates_all
+    analytics["total_skew"] = skew
+
+    top_ds_avg_ds_all = supabase_utils.get_top_ds_and_avg_ds_all(supabase)
+    analytics["top_ds_vs_avg_ds"] = top_ds_avg_ds_all
+
+    return analytics

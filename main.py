@@ -52,9 +52,18 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup_event():
-    inference.download_model()
-    global model
-    model = inference.load_model()
+    print(">>> Startup: beginning model download/load")
+    try:
+        inference.download_model()
+        print(">>> Startup: download ok")
+
+        global model
+        model = inference.load_model()
+        print(">>> Startup: model load ok")
+
+    except Exception as e:
+        print(">>> Startup ERROR:", e)
+        raise
 
 
 @app.get("/")
@@ -207,7 +216,7 @@ def get_images_with_damage_aggregates(
     """
     For each image in the range [start, end], return an ImagesRow with a damage_counts dict
     """
-    max_window = 20
+    max_window = 21
     if end < start:
         raise HTTPException(status_code=400, detail="end must be >= start")
     if (end - start + 1) > max_window:
@@ -305,7 +314,7 @@ async def infer_image(ordinal: int):
 @app.get(
     "/images/labeled/",
     summary="Get a range of LABELLED images for current user",
-    description="max_window (20) prevents massive responses",
+    description="max_window (21) prevents massive responses",
     response_model=list[ImagesRow],
 )
 def get_images_labeled_range(
@@ -314,7 +323,42 @@ def get_images_labeled_range(
     end: int = Query(..., ge=1),  # mandatory(...), greater than or equal to 1
 ):
     """
-    Get Function for Labeled Images - images in range (start, end) from the table of labeled images for current user, newest first
+    Get Function for Labeled Images - images in range (start, end) from the list of unlabeled images for current user, newest first
+    """
+    max_window: int = 21  # guardrail to prevent huge responses; tweak as needed
+
+    if end < start:
+        raise HTTPException(status_code=400, detail="end must be >= start")
+    if (end - start + 1) > max_window:
+        raise HTTPException(
+            status_code=400, detail=f"range too large; max {max_window}"
+        )
+    
+    user_cookie = request.cookies.get("user")
+    user_email = json.loads(user_cookie).get("email") if user_cookie else None
+
+    if not user_email:
+        raise HTTPException(
+            status_code=401, detail="No user identity, please authenticate"
+        )
+
+    return supabase_utils.get_images_labeled(supabase, start, end, user_email, SIGNED_URL_TTL)
+
+@app.get(
+    "/images/unlabeled/",
+    summary="Get a range of UNLABELLED images for current user",
+    description="max_window (21) prevents massive responses",
+    response_model=list[ImagesRow],
+)
+def get_images_unlabeled_range(
+    request: Request,
+    start: int = Query(..., ge=1), # mandatory(...), greater than or equal to 1
+    end: int = Query(..., ge=1) # mandatory(...), greater than or equal to 1
+
+    
+):
+    """
+    Get Function for Unlabeled Images - images in range (start, end) from the list of unlabeled images for current user, sorted by ordinal (smallest first)
     """
     max_window: int = 21  # guardrail to prevent huge responses; tweak as needed
 
@@ -333,45 +377,4 @@ def get_images_labeled_range(
             status_code=401, detail="No user identity, please authenticate"
         )
 
-    return supabase_utils.get_images_labeled(
-        supabase, start, end, user_email, SIGNED_URL_TTL
-    )
-
-
-@app.get("/analytics/me", summary="Gets analytics about authenticated user")
-def get_user_analytics(request: Request):
-    user_cookie = request.cookies.get("user")
-    user_email = json.loads(user_cookie).get("email") if user_cookie else None
-
-    if not user_email:
-        raise HTTPException(
-            status_code=401, detail="No user identity, please authenticate"
-        )
-
-    analytics = {}
-    num_comments = supabase_utils.get_user_num_comments(supabase, user_email)
-    analytics["num_comments"] = num_comments
-    dmg_aggregates, skew = supabase_utils.get_damage_aggregates_for_user(
-        supabase, user_email
-    )
-    analytics["damage_aggregates"] = dmg_aggregates
-    analytics["user_skew"] = skew
-    predictions_and_confusions = (
-        supabase_utils.get_predictions_and_confusions_for_user(supabase, user_email)
-    )
-    analytics["predictions_and_confusions"] = predictions_and_confusions
-    return analytics
-
-
-@app.get("/analytics/overview", summary="Gets general analytics")
-def get_overview_analytics(request: Request):
-    analytics = {}
-
-    damage_aggregates_all, skew = supabase_utils.get_damage_aggregates_all(supabase)
-    analytics["damage_aggregates_all"] = damage_aggregates_all
-    analytics["total_skew"] = skew
-
-    top_ds_avg_ds_all = supabase_utils.get_top_ds_and_avg_ds_all(supabase)
-    analytics["top_ds_vs_avg_ds"] = top_ds_avg_ds_all
-
-    return analytics
+    return supabase_utils.get_images_unlabeled(supabase, start, end, user_email, SIGNED_URL_TTL)

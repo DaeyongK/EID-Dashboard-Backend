@@ -159,6 +159,48 @@ def get_images_labeled(
 
     return out
 
+def get_images_unlabeled(supabase: Client, start: int, end: int, user_email, SIGNED_URL_TTL):
+    """
+    Gets the unlabeled images for user_email and limits to range in (start, end), ordered by most ordinal (smallest first)
+    """
+
+    intermediate_res = (
+        supabase.table("comments")
+        .select("image_id")
+        .eq("email_id", user_email)
+        .execute()
+    )
+    
+    labeled_ids = [r["image_id"] for r in intermediate_res.data]
+
+    if isinstance(labeled_ids, str):
+        labeled_ids = [labeled_ids] 
+
+    res = supabase.table("images").select("*")
+
+    if labeled_ids:
+        excluded_id_list = ','.join(f'"{str(x)}"' for x in labeled_ids) # in format expected by PostgREST, i.e. a string '("id1", "id2", ...)'
+        excluded_id_list = f"({excluded_id_list})"
+        res = res.filter("id", "not.in", excluded_id_list)
+
+    res = (
+        res.order("ordinal", desc=False)
+        .range(start-1, end-1)
+        .execute()
+    )
+
+    rows = res.data or []
+    out: list[ImagesRow] = []
+    for r in rows:
+        out.append(ImagesRow(
+            id=r["id"], 
+            storage_path=r["storage_path"], 
+            created_at=r["created_at"], 
+            ordinal=r["ordinal"], 
+            url=_signed_url_for_storage_path(r["storage_path"], supabase, SIGNED_URL_TTL),
+        ))
+
+    return out
 
 def get_damage_aggregates_for_images(
     supabase: Client, start: int, end: int, SIGNED_URL_TTL: int

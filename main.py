@@ -16,6 +16,8 @@ from utils.supabase_utils import CommentCreate
 import json
 import asyncio
 from analytics_scripts import refresh_image_stats, calculate_image_confusion
+from urllib.parse import urlparse
+
 
 load_dotenv()
 
@@ -127,6 +129,7 @@ async def auth(request: Request):
         raise HTTPException(status_code=400, detail="No User info from Google")
 
     frontend_url = os.getenv("FRONTEND_URL")
+    frontend_domain = urlparse(frontend_url).netloc
     response = RedirectResponse(url=f"{frontend_url}/")
     response.set_cookie(
         key="user",
@@ -138,6 +141,7 @@ async def auth(request: Request):
         ),
         samesite="none",
         secure=True,
+        domain=frontend_domain,
     )
     return response
 

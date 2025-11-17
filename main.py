@@ -40,7 +40,13 @@ oauth.register(
     client_kwargs={"scope": "openid email profile"},
 )
 
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY"))
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key=os.getenv("SESSION_SECRET_KEY"),
+    same_site="none",
+    https_only=True,
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[FRONTEND_URL, "http://localhost:3000"],
@@ -130,6 +136,8 @@ async def auth(request: Request):
                 "picture": user["picture"],
             }
         ),
+        samesite="none",
+        secure=True,
     )
     return response
 

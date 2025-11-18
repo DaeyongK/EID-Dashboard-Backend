@@ -1,6 +1,21 @@
-# Setup Instructions
+# EID Dashboard Backend
 
-1. Create Virtual Environment with
+## Description
+
+This repository contains the backend services for our web application. Built with FastAPI, it integrates a Supabase PostgreSQL database and provides endpoints that support frontend features such as image display and rating submission.
+
+The backend also handles model inference by downloading a PyTorch model from Google Cloud Platform (GCP) and running it on user-submitted images. It includes an interactive, auto-generated API documentation page, making it easy for developers to explore and test endpoints.
+
+In addition, the backend supports user authentication, allowing us to track user-specific data. For the website’s analysis page, it also features endpoints that compute and return the data visualized there.
+
+## Installation
+
+1. Download the codebase
+ ```
+ git clone https://github.com/DaeyongK/EID-Dashboard-Backend.git
+ ```
+
+3. Create Virtual Environment with
 ```bash
 python3 -m venv venv
 ```
@@ -21,45 +36,15 @@ venv\Scripts\activate.bat
 pip install -r requirements.txt
 ```
 
-4. Create `.env` file in root (refer to text channels for client ID and secret), and copy paste necessary values (shared on Teams)
-```bash
-ENVIRONMENT=development
-FRONTEND_URL=http://localhost:3000
-BACKEND_URL=http://localhost:8000
-...
-```
+4. Copy backend `.env` file into root
 
-5. Download `gcs_credentials.json` (shared on Teams) into root directory
+5. Copy `gcs_credentials.json` into root directory
 
-6. Launch app
+## Execution
+
+1. Launch app (Note: you will also need to launch frontend if you want to see the full website)
 ```bash
 uvicorn main:app --reload
 ```
 
-7. Reference backend API descriptions by navigating to [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-
-
-
-# Deploy FastAPI on Render
-
-Use this repo as a template to deploy a Python [FastAPI](https://fastapi.tiangolo.com) service on Render.
-
-See https://render.com/docs/deploy-fastapi or follow the steps below:
-
-## Manual Steps
-
-1. You may use this repository directly or [create your own repository from this template](https://github.com/render-examples/fastapi/generate) if you'd like to customize the code.
-2. Create a new Web Service on Render.
-3. Specify the URL to your new repository or this repository.
-4. Render will automatically detect that you are deploying a Python service and use `pip` to download the dependencies.
-5. Specify the following as the Start Command.
-
-    ```shell
-    uvicorn main:app --host 0.0.0.0 --port $PORT
-    ```
-
-6. Click Create Web Service.
-
-Or simply click:
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/render-examples/fastapi)
+2. Reference backend API descriptions by navigating to [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)

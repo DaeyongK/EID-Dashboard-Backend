@@ -134,7 +134,7 @@ async def auth(request: Request):
         raise HTTPException(status_code=400, detail="No User info from Google")
 
     frontend_url = os.getenv("FRONTEND_URL")
-    response = RedirectResponse(url=f"{frontend_url}/dashboard")
+    response = RedirectResponse(url=f"{frontend_url}/")
     response.set_cookie(
         key="user",
         value=json.dumps(

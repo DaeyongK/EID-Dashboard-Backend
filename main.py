@@ -105,6 +105,12 @@ async def logout(request: Request):
     response.delete_cookie(key="user")
     return response
 
+@app.get("/logout_test", summary="Handle Google OAuth logout")
+async def logout(request: Request):
+    response = JSONResponse({"ok": True})
+    response.delete_cookie(key="user")
+    return response
+ 
 
 @app.get("/auth", summary="Handle Google OAuth callback")
 async def auth(request: Request):

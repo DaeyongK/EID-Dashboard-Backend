@@ -107,7 +107,8 @@ async def logout(request: Request):
 
 @app.get("/logout_test", summary="Handle Google OAuth logout")
 async def logout(request: Request):
-    response = JSONResponse({"ok": True})
+    frontend_url = os.getenv("FRONTEND_URL")
+    response = RedirectResponse(url=f"{frontend_url}/")
     response.delete_cookie(key="user")
     return response
  

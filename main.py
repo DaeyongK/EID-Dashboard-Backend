@@ -15,7 +15,7 @@ from utils import inference, supabase_utils
 from utils.supabase_utils import CommentCreate
 import json
 import asyncio
-from analytics_scripts import refresh_image_stats, calculate_image_confusion
+from analytics_scripts import refresh_image_stats, calculate_image_confusion, run_model_prediction
 
 load_dotenv()
 
@@ -248,7 +248,7 @@ def get_images_with_damage_aggregates(
     "/comments/write/{n}",
     summary="Writes comment to database, updates if comment exists",
 )
-def create_comment(
+async def create_comment(
     n: int,
     request: Request,
     comment: CommentCreate,
@@ -278,10 +278,19 @@ def create_comment(
         supabase_utils.update_user_comment_helper(
             supabase, user_email, n, comment.body, comment.damage_sev
         )
-    # update stats table
-    refresh_image_stats.refresh_image_stats(supabase)
-    calculate_image_confusion.calculate_image_confusion(supabase)
-    calculate_image_confusion.update_model_confusion(supabase)
+
+    task = asyncio.create_task(
+        refresh_image_stats.refresh_image_stats(
+            supabase, SIGNED_URL_TTL=SIGNED_URL_TTL, predict_null_only=True, run_all=True
+        )
+    )
+    def _log_task_done(t: asyncio.Task):
+        try:
+            t.result()
+        except Exception as e:
+            print("refresh_image_stats background task failed:", e)
+    task.add_done_callback(_log_task_done)
+    return {"ok": True}
 
 
 @app.get(

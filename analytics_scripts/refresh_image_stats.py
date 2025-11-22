@@ -11,17 +11,14 @@ from analytics_scripts.calculate_image_confusion import (
 )
 
 
-def refresh_image_stats(supabase: Client, SIGNED_URL_TTL="", run_all: bool = False):
+async def refresh_image_stats(supabase: Client, SIGNED_URL_TTL="", run_all: bool = False, predict_null_only = True):
     supabase.rpc("refresh_image_stats", {}).execute()
     if not run_all:
         return
 
-    asyncio.run(
-        run_model_prediction_on_images(supabase, SIGNED_URL_TTL, null_only=False)
-    )
+    await run_model_prediction_on_images(supabase, SIGNED_URL_TTL, null_only=predict_null_only)
     calculate_image_confusion(supabase)
     update_model_confusion(supabase)
-
 
 if __name__ == "__main__":
     load_dotenv()
@@ -31,4 +28,6 @@ if __name__ == "__main__":
     supabase: Client = create_client(url, key)
     SIGNED_URL_TTL = int(os.getenv("SIGNED_URL_TTL", "3600"))
 
-    refresh_image_stats(supabase, SIGNED_URL_TTL, run_all=True)
+    asyncio.run(
+        refresh_image_stats(supabase, SIGNED_URL_TTL, run_all=True)
+    )
